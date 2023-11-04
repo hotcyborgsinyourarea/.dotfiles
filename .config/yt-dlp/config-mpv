@@ -1,0 +1,5 @@
+--concurrent-fragments 4
+--no-call-home
+--geo-bypass
+--no-mark-watched
+--yes-playlist

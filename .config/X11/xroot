@@ -1,0 +1,68 @@
+#!/usr/bin/env sh
+
+REFRESH_RATE=0.25
+
+statusbar() {
+    # Date
+    date="$(date +"%A, %B %d - %H:%M")"
+
+    # Battery
+    if [ -f /sys/class/power_supply/BAT0 ] || [ -L /sys/class/power_supply/BAT0 ]; then
+        battery="$(cat /sys/class/power_supply/BAT0/capacity)%"
+        battery_status="$(tr '[:upper:]' '[:lower:]' < /sys/class/power_supply/BAT0/status)"
+    fi
+
+    # Volume
+    if command -v pamixer >/dev/null 2>&1; then
+        current_volume="$(pamixer --get-volume-human)"
+    else
+        SINK="$(pactl list short sinks |
+            sed -e 's,^\([0-9][0-9]*\)[^0-9].*,\1,' |
+            head -n 1)"
+        current_volume="$(pactl list sinks |
+            grep '^[[:space:]]Volume:' |
+            head -n $(( SINK + 1 )) |
+            tail -n 1 |
+            sed -e 's,.* \([0-9][0-9]*\)%.*,\1,')"
+    fi
+
+    # RAM
+    ram="$(free -h | awk '/Mem/ {printf "%s/%s\n", $3, $2}')"
+
+    # Disk usage
+    root_partition="$(df -h | awk '{ if ($6 == "/") print $4 "/" $2 " (" $5 ")" }')"
+
+    # Network
+    wired_status="$(cat /sys/class/net/enp2s0/operstate)"
+    if [ "${wired_status}" != 'down' ]; then
+        wired_localip="$(ip addr show enp2s0 |
+            sed -En 's/127.0.0.1//;s/.*inet (addr:)?(([0-9]*\.){3}[0-9]*).*/\2/p')"
+    else
+        wired_localip="${wired_status}"
+    fi
+
+    wireless_status="$(cat /sys/class/net/wlp3s0/operstate)"
+    if [ "${wireless_status}" != 'down' ]; then
+        wireless_localip="$(ip addr show wlp3s0 |
+            sed -En 's/127.0.0.1//;s/.*inet (addr:)?(([0-9]*\.){3}[0-9]*).*/\2/p')"
+    else
+        wireless_localip="${wireless_status}"
+    fi
+
+    # shellcheck disable=SC2312
+    printf "[ip: %s | mem: %s | root: %s | vol: %s%% | bat: %s %s | %s]" \
+        "$(
+            [ "${wireless_localip}" != "down" ] && printf "%s" "${wireless_localip}"
+            [ "${wired_localip}"    != "down" ] && printf "%s" "${wired_localip}"
+        )" \
+        "${ram}" \
+        "${root_partition}" \
+        "${current_volume}" \
+        "${battery}" "${battery_status}" \
+        "${date}"
+}
+
+while true; do
+    xsetroot -name "$(statusbar||:)"
+    sleep "${REFRESH_RATE}"
+done

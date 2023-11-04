@@ -1,0 +1,21 @@
+#!/bin/sh
+
+# Run this script in case you don't need to run xinitrc.
+# This does all the user configurations without executing any WM/DEs.
+
+# Add fcitx support in qt and gtk
+export QT_IM_MODULE=fcitx5
+export GTK_IM_MODULE=fcitx5
+export XMODIFIERS=@im=fcitx5
+
+# Display configurations
+xrandr --setprovideroutputsource modesetting NVIDIA-0
+xrandr --auto
+xrandr --dpi 96
+
+# Change keyboard sensitivity to something sane
+xset r rate 300 50
+
+# Other nice programs
+xbindkeys -f "$XDG_CONFIG_HOME"/X11/xbindkeysrc &
+fcitx5 -d &
